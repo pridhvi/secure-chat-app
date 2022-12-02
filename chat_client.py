@@ -9,7 +9,6 @@ import os
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-import keygen
 import base64
 import encryption
 import ast

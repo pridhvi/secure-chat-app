@@ -12,7 +12,7 @@ import base64
 import ast
 import encryption
 import os
-import LoggedInClient
+import loggedin_client
 
 clients_creds = {"c1": "26eedef98e80edc0614d757ae8cc3de657ac5d33bd1daf59703b73de69ff9610", "c2": "cad43162a389b24871764af247b3ddfb7a3d50d744b619464fb4f4b87eeba11c", "c3": "d44873f2e8af3b127109702d70b63f6dada15ee7d13d63a2cbde7acb366c0848"}
 
@@ -65,7 +65,7 @@ def login_client(message_data, addr):
     if is_client(message_data['username'], message_data['password_hash']):
         N2 = str(os.urandom(10))
         #clients.append([message_data['username'], addr, message_data['shared_key'], N2])
-        new_client = LoggedInClient.LoggedInClient(message_data['username'], addr, message_data['shared_key'], N2)
+        new_client = loggedin_client.LoggedInClient(message_data['username'], addr, message_data['shared_key'], N2)
         global logged_in_clients
         logged_in_clients.append(new_client)
         update_client_list(new_client)
