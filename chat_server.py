@@ -69,12 +69,13 @@ def login_client(message_data, addr):
         global logged_in_clients
         logged_in_clients.append(new_client)
         update_client_list(new_client)
-        #send_updated_client_list()
+        send_updated_client_list()
         #for i in logged_in_clients:
         #    print(i.clients_shared_keys)
         #client_list = update_client_list(message_data)
         # add client_list to data
-        data = "{'N1': "+str(message_data['N1'])+", 'N2': "+N2+", 'client_list': "+str(new_client.clients_shared_keys)+"}"
+        #data = "{'N1': "+str(message_data['N1'])+", 'N2': "+N2+", 'clients_shared_keys': "+str(new_client.clients_shared_keys)+", 'clients_addr': "+str(new_client.clients_addr)+"}"
+        data = "{'N1': "+str(message_data['N1'])+", 'N2': "+N2+"}"
         enc_data, iv = encryption.symmetrical_encrypt(data.encode(), message_data['shared_key'])
 
         message = "{'type': 'LOGIN', 'data': "+str(enc_data)+", 'iv': "+str(iv)+"}"
@@ -92,16 +93,17 @@ def is_client(username, password_hash):
 def update_client_list(new_client):
     global logged_in_clients
     for client in logged_in_clients:
-        client.update_clients_shared_keys(new_client.username, os.urandom(10), new_client.addr)
+        client.update_clients_shared_keys(new_client.username, os.urandom(32), new_client.addr)
         new_client.update_clients_shared_keys(client.username, client.clients_shared_keys[new_client.username], client.addr)    
 
 def send_updated_client_list():
     global logged_in_clients
     for client in logged_in_clients:
         enc_logged_in_clients, iv = encryption.symmetrical_encrypt(str(client.clients_shared_keys).encode(), client.server_shared_key)
-        
-        message = "{'type': 'LIST', 'client_list': "++"}"
-        send_message(message, client.addr)
+        data = "{'clients_shared_keys': "+str(client.clients_shared_keys)+", 'clients_addr': "+str(client.clients_addr)+"}"
+        enc_data, iv = encryption.symmetrical_encrypt(data.encode(), client.server_shared_key)
+        message = "{'type': 'LIST', 'data': "+str(enc_data)+", 'iv': "+str(iv)+"}"
+        send_message(message.encode(), client.addr)
 
 def send_message(message, addr):
     server.sendto(message, addr)

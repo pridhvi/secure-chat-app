@@ -8,7 +8,10 @@ class LoggedInClient:
         self.server_shared_key = server_shared_key
         self.N2 = N2
         self.clients_shared_keys = {}
+        self.clients_addr = {}
     
     def update_clients_shared_keys(self, username, key, addr):
-        self.clients_shared_keys[username] = (key, addr)
-        print(self.clients_shared_keys)
+        self.clients_shared_keys[username] = key
+        self.clients_addr[username] = addr
+        #print(self.clients_shared_keys)
+        #print(self.clients_addr)
