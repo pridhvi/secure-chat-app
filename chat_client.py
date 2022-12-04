@@ -14,11 +14,12 @@ import encryption
 import ast
 import dh_exchange
 import time
+import getpass
 
 # Argument parser
 parser = argparse.ArgumentParser()
-parser.add_argument('-u',type=str, required=True)
-parser.add_argument('-p',type=str, required=True)
+#parser.add_argument('-u',type=str, required=True)
+#parser.add_argument('-p',type=str, required=True)
 parser.add_argument('-sip',type=str, required=True)
 parser.add_argument('-sp',type=int, required=True)
 args = parser.parse_args()
@@ -27,7 +28,9 @@ args = parser.parse_args()
 # Choose a random port between 8000-9000 for the client socket
 CLIENT_PORT = random.randint(8000, 9000)
 CLIENT_IP = socket.gethostbyname(socket.gethostname())
-CLIENT_USERNAME = args.u
+CLIENT_USERNAME = input("Username: ")
+#CLIENT_USERNAME = args.u
+CLIENT_PASSWORD = getpass.getpass("Password: ")
 CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
 SERVER_ADDR = (args.sip, args.sp)
 N2 = ""
@@ -45,7 +48,6 @@ clients_dh_keys = {}
 try:
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client.bind(CLIENT_ADDR)
-    print("Application starting at " + str(CLIENT_IP) + ":" + str(CLIENT_PORT) + " ...")
 except:
     sys.exit("Error: Unable to open UDP socket at port " + str(CLIENT_PORT))
 
@@ -76,7 +78,7 @@ def extract_server_public_key():
     return server_public_key
 
 # Log-In to the server
-sha256_password = hashlib.sha256(args.p.encode())
+sha256_password = hashlib.sha256(CLIENT_PASSWORD.encode())
 #print(sha256_password.hexdigest())
 N1 = str(os.urandom(10))
 shared_key = os.urandom(32)
@@ -182,7 +184,9 @@ def help():
     print("    -> usage: list")
     print("2. send")
     print("    -> usage: send <receiver_username> <message>")
-    print("3. help")
+    print("3. logout")
+    print("    -> usage: logout")
+    print("4. help")
     print("    -> usage: help")
     print("--------------------------------------------------")
 
@@ -191,6 +195,8 @@ def menu():
     while True:
         # Split space seperated input into list of strings
         command = input().split()
+        if not command:
+            continue
         # command[0] is the first string
         if command[0] == "list":
             print_clients()
@@ -272,9 +278,9 @@ def processor():
                 sys.exit()
 
         # Print error message and stop the program
-        #elif message_json['type'] == 'ERROR':
-        #    print("ERROR: " + message_json['message'])
-        #    break
+        elif message_data['type'] == 'ERROR':
+            print("ERROR: " + message_data['message'])
+            break
         #except:
         #    print("Error: Error reading incoming message.")
 

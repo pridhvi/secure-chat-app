@@ -38,15 +38,18 @@ except:
     sys.exit("Error: Unable to open UDP socket at port " + str(SERVER_PORT))
 
 def rsa_decrypt(message):
-    server_private_key = extract_server_private_key()
-    return server_private_key.decrypt(
-        message,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
+    try:
+        server_private_key = extract_server_private_key()
+        return server_private_key.decrypt(
+            message,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
         )
-    )
+    except:
+        sys.exit("Error: Decryption failed")
 
 def extract_server_private_key():
     try:
@@ -62,7 +65,7 @@ def extract_server_private_key():
 # Add new client to the clients list
 def login_client(message_data, addr):
     # Check if username and password match
-    if is_client(message_data['username'], message_data['password_hash']):
+    if is_client(message_data['username'], message_data['password_hash'], addr):
         N2 = str(os.urandom(10))
         #clients.append([message_data['username'], addr, message_data['shared_key'], N2])
         new_client = loggedin_client.LoggedInClient(message_data['username'], message_data['shared_key'], addr, N2)
@@ -70,11 +73,6 @@ def login_client(message_data, addr):
         logged_in_clients.append(new_client)
         update_client_list(new_client)
         send_updated_client_list()
-        #for i in logged_in_clients:
-        #    print(i.clients_shared_keys)
-        #client_list = update_client_list(message_data)
-        # add client_list to data
-        #data = "{'N1': "+str(message_data['N1'])+", 'N2': "+N2+", 'clients_shared_keys': "+str(new_client.clients_shared_keys)+", 'clients_addr': "+str(new_client.clients_addr)+"}"
         data = "{'N1': "+str(message_data['N1'])+", 'N2': "+N2+"}"
         enc_data, iv = encryption.symmetrical_encrypt(data.encode(), message_data['shared_key'])
 
@@ -82,13 +80,18 @@ def login_client(message_data, addr):
         send_message(message.encode(), addr)
     else:
         # Send error message to user informing of duplicate username
-        send_error("Incorrect Credentials!", addr)
+        message = "{'type': 'ERROR', 'message': 'Incorrect Credentials!'}"
+        send_message(message.encode(), addr)
 
 # Check if client is present in clients list
-def is_client(username, password_hash):
-    if clients_creds[username] == password_hash:
-        return True
-    return False
+def is_client(username, password_hash, addr):
+    try:
+        if clients_creds[username] == password_hash:
+            return True
+        return False
+    except:
+        message = "{'type': 'ERROR', 'message': 'Incorrect Credentials!'}"
+        send_message(message.encode(), addr)
 
 def update_client_list(new_client):
     global logged_in_clients
@@ -114,18 +117,19 @@ def logout_client(data_dec):
                 data_enc, iv = encryption.symmetrical_encrypt(data.encode(), client.server_shared_key)
                 message = "{'type': 'LOGOUT', 'data': "+str(data_enc)+", 'iv' : "+str(iv)+"}"
                 send_message(message.encode(), client.addr)
-                logged_in_clients.remove(client)
-                ## Loop thorugh logged_in_clients and remove C1 from both dicts
+                remove_client(client)
                 send_updated_client_list()
                 break
+    
+def remove_client(client):
+    global logged_in_clients
+    logged_in_clients.remove(client)
+    for c in logged_in_clients:
+        c.clients_addr.pop(client.username)
+        c.clients_shared_keys.pop(client.username)
 
 def send_message(message, addr):
     server.sendto(message, addr)
-
-# Send error message
-def send_error(message, addr):
-    error_json = json.dumps({"type": "ERROR", "message": message})
-    server.sendto(error_json.encode(), addr)
 
 # Process the queued messages
 def processor():
