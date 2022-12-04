@@ -2,7 +2,7 @@ import os
 
 class LoggedInClient:
 
-    def __init__(self, username, addr, server_shared_key, N2):
+    def __init__(self, username, server_shared_key, addr, N2):
         self.username = username
         self.addr = addr
         self.server_shared_key = server_shared_key
@@ -13,5 +13,3 @@ class LoggedInClient:
     def update_clients_shared_keys(self, username, key, addr):
         self.clients_shared_keys[username] = key
         self.clients_addr[username] = addr
-        #print(self.clients_shared_keys)
-        #print(self.clients_addr)

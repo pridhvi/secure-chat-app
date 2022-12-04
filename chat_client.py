@@ -31,8 +31,10 @@ CLIENT_USERNAME = args.u
 CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
 SERVER_ADDR = (args.sip, args.sp)
 N2 = ""
+N3 = ""
 a = 0
 b = 0
+p = 0
 
 # clients list to cache logged in clients
 clients_shared_keys = {}
@@ -86,18 +88,22 @@ login_message = "{'type': 'LOGIN', 'data': "+str(rsa_encrypt(login_message_data.
 send_message(login_message.encode(), SERVER_ADDR)
 
 # Send message to another client
-def send_message_to_client(username, message):
+def send_message_to_client(username, text):
     if not clients_dh_keys.get(username):
         initiate_dh_handshake(username)
         for i in range(10):
             if not clients_dh_keys.get(username):
                 time.sleep(6)
     
-    #send_message(message, addr)
+    data = "{'receiver-username': '"+username+"', 'text': '"+text+"'}"
+    data_enc, iv = encryption.symmetrical_encrypt(data.encode(), clients_dh_keys[username].digest())
+    message = "{'type': 'MESSAGE', 'sender-username': '"+CLIENT_USERNAME+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+"}"
+
+    send_message(message.encode(), clients_addr[username])
 
 
 def initiate_dh_handshake(username):
-    global a
+    global a, p
     gamodp, g, p, a = dh_exchange.send_dh_parameters()
     client_shared_key = clients_shared_keys[username]
     client_addr = clients_addr[username]
@@ -110,10 +116,22 @@ def initiate_dh_handshake(username):
 
     send_message(message.encode(), client_addr)
 
-def calculate_dh_derived_key(gxmodp, p, username):
+def calculate_dh_derived_key_receiver(gamodp, p, username):
     global b
-    derived_key = pow(gxmodp, b, p)
+    derived_key = pow(gamodp, b, p)
+    derived_key = hashlib.sha256(str(derived_key).encode())
     clients_dh_keys[username] = derived_key
+    #print(str(derived_key.digest()))
+    #print(encryption.symmetrical_encrypt("hello".encode(), derived_key.digest()))
+
+def calculate_dh_derived_key_sender(gbmodp, p, username):
+    global a
+    derived_key = pow(gbmodp, a, p)
+    derived_key = hashlib.sha256(str(derived_key).encode())
+    clients_dh_keys[username] = derived_key
+
+    #print(sys.getsizeof(derived_key.to_bytes(32, 'big')))
+    #print(hashlib.sha256(str(derived_key).encode()).hexdigest())
 
 # Print the list of logged in clients received from the server
 def update_clients(data):
@@ -122,6 +140,7 @@ def update_clients(data):
     clients_addr = data['clients_addr']
 
 def print_clients():
+    global clients_addr
     for username, addr in clients_addr.items():
         print(username + " --> " + str(addr))
 
@@ -144,6 +163,16 @@ def finish_login(message_data, addr):
         N2 = message_data_dec['N2']
     else:
         sys.exit("Error: Server Authentication failed!")
+
+def logout():
+    global N2, N3
+    N3 = os.urandom(10)
+    data = "{'username': '"+CLIENT_USERNAME+"', 'N2': "+str(N2)+", 'N3': "+str(N3)+"}"
+    message = "{'type': 'LOGOUT', 'data': "+str(rsa_encrypt(data.encode()))+"}"
+    #data = "{'N2': "+str(N2)+", 'N3': "+str(N3)+"}"
+    #data_enc, iv = encryption.symmetrical_encrypt(data.encode(), shared_key)
+    #message = "{'type': 'LOGOUT', 'username': '"+CLIENT_USERNAME+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+"}"
+    send_message(message.encode(), SERVER_ADDR)
 
 # Print help command output
 def help():
@@ -169,6 +198,9 @@ def menu():
             # Second string(command[1]) is the username
             # Passing rest of the strings in the list as the message
             send_message_to_client(command[1], ' '.join(command[2:]))
+        elif command[0] == "logout":
+            logout()
+
         elif command[0] == "help":
             help()
         else:
@@ -200,13 +232,12 @@ def processor():
 
             global b
             gbmodp, b = dh_exchange.receive_dh_parameters(data['g'], data['p'])
-            calculate_dh_derived_key(gbmodp, data['p'], message_data['sender-username'])
+            calculate_dh_derived_key_receiver(data['gamodp'], data['p'], message_data['sender-username'])
 
             data = "{'receiver-username': '"+message_data['sender-username']+"', 'gbmodp': "+str(gbmodp)+"}"
-
             data_enc, iv = encryption.symmetrical_encrypt(data.encode(), client_shared_key)
-
             message = "{'type': 'DH-HANDSHAKE-2', 'sender-username': '"+str(CLIENT_USERNAME)+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+"}"
+            send_message(message.encode(), addr)
 
 
         elif message_data['type'] == 'DH-HANDSHAKE-2':
@@ -216,9 +247,29 @@ def processor():
 
             if str(data['receiver-username']) != CLIENT_USERNAME:
                 sys.exit("Error: Messaging")
+            global p
+            calculate_dh_derived_key_sender(data['gbmodp'], p, message_data['sender-username'])
+        
+        elif message_data['type'] == 'MESSAGE':
+            client_dh_key = clients_dh_keys[message_data['sender-username']]
+            data_dec = encryption.symmetrical_decrypt(message_data['data'], client_dh_key.digest(), message_data['iv'])
+            data = ast.literal_eval(data_dec.decode())
+
+            if str(data['receiver-username']) != CLIENT_USERNAME:
+                sys.exit("Error: Messaging")
             
-            calculate_dh_derived_key(gbmodp, p, username)
-            #calculate_dh_derived_key(gbmodp, p, username)
+            print(str(message_data['sender-username']) + ": " + str(data['text']))
+        
+        elif message_data['type'] == 'LOGOUT':
+            data_dec = encryption.symmetrical_decrypt(message_data['data'], shared_key, message_data['iv'])
+            data = ast.literal_eval(data_dec.decode())
+
+            if str(data['username']) != CLIENT_USERNAME:
+                sys.exit("Error: Messaging")
+
+            global N3
+            if str(data['N3']) == str(N3):
+                sys.exit()
 
         # Print error message and stop the program
         #elif message_json['type'] == 'ERROR':

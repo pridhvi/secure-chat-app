@@ -65,7 +65,7 @@ def login_client(message_data, addr):
     if is_client(message_data['username'], message_data['password_hash']):
         N2 = str(os.urandom(10))
         #clients.append([message_data['username'], addr, message_data['shared_key'], N2])
-        new_client = loggedin_client.LoggedInClient(message_data['username'], addr, message_data['shared_key'], N2)
+        new_client = loggedin_client.LoggedInClient(message_data['username'], message_data['shared_key'], addr, N2)
         global logged_in_clients
         logged_in_clients.append(new_client)
         update_client_list(new_client)
@@ -97,13 +97,27 @@ def update_client_list(new_client):
         new_client.update_clients_shared_keys(client.username, client.clients_shared_keys[new_client.username], client.addr)    
 
 def send_updated_client_list():
-    global logged_in_clients
+    global logged_in_clients     
     for client in logged_in_clients:
         enc_logged_in_clients, iv = encryption.symmetrical_encrypt(str(client.clients_shared_keys).encode(), client.server_shared_key)
         data = "{'clients_shared_keys': "+str(client.clients_shared_keys)+", 'clients_addr': "+str(client.clients_addr)+"}"
         enc_data, iv = encryption.symmetrical_encrypt(data.encode(), client.server_shared_key)
         message = "{'type': 'LIST', 'data': "+str(enc_data)+", 'iv': "+str(iv)+"}"
         send_message(message.encode(), client.addr)
+
+def logout_client(data_dec):
+    global logged_in_clients
+    for client in logged_in_clients:
+        if client.username == data_dec['username']:
+            if client.N2 == str(data_dec['N2']):
+                data = "{'N3': "+str(data_dec['N3'])+", 'username': '"+client.username+"'}"
+                data_enc, iv = encryption.symmetrical_encrypt(data.encode(), client.server_shared_key)
+                message = "{'type': 'LOGOUT', 'data': "+str(data_enc)+", 'iv' : "+str(iv)+"}"
+                send_message(message.encode(), client.addr)
+                logged_in_clients.remove(client)
+                ## Loop thorugh logged_in_clients and remove C1 from both dicts
+                send_updated_client_list()
+                break
 
 def send_message(message, addr):
     server.sendto(message, addr)
@@ -122,11 +136,8 @@ def processor():
             data_dec = ast.literal_eval(rsa_decrypt(message_data['data']).decode())
             login_client(data_dec, addr)
 
-        elif message_json['type'] == 'LOGIN-3':
-            finish_login(message_json, addr)
-
-        elif message_json['type'] == 'LIST':
-            clients_json = json.dumps({"type": "LIST", "clients": clients})
-            server.sendto(clients_json.encode(), addr)
+        elif message_data['type'] == 'LOGOUT':
+            data_dec = ast.literal_eval(rsa_decrypt(message_data['data']).decode())
+            logout_client(data_dec)
 
 processor()
