@@ -27,7 +27,8 @@ args = parser.parse_args()
 
 # Constants
 SERVER_PORT = args.sp
-SERVER_IP = socket.gethostbyname(socket.gethostname())
+#SERVER_IP = socket.gethostbyname(socket.gethostname())
+SERVER_IP = "127.0.0.1"
 SERVER_ADDR = (SERVER_IP, SERVER_PORT)
 
 # Create server socket
@@ -142,6 +143,7 @@ def processor():
         message, addr = server.recvfrom(4096)
         message_data = ast.literal_eval(message.decode())
         if message_data['type'] == 'LOGIN':
+            print("TEST")
             data_dec = ast.literal_eval(rsa_decrypt(message_data['data']).decode())
             login_client(data_dec, addr)
 

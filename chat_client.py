@@ -27,9 +27,9 @@ args = parser.parse_args()
 # Constants
 # Choose a random port between 8000-9000 for the client socket
 CLIENT_PORT = random.randint(8000, 9000)
-CLIENT_IP = socket.gethostbyname(socket.gethostname())
+#CLIENT_IP = socket.gethostbyname(socket.gethostname())
+CLIENT_IP = "127.0.0.1"
 CLIENT_USERNAME = input("Username: ")
-#CLIENT_USERNAME = args.u
 CLIENT_PASSWORD = getpass.getpass("Password: ")
 CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
 SERVER_ADDR = (args.sip, args.sp)
@@ -118,29 +118,43 @@ def initiate_dh_handshake(username):
     client_addr = clients_addr[username]
 
     data = "{'receiver-username': '"+username+"', 'g': "+str(g)+", 'p': "+str(p)+", 'gamodp': "+str(gamodp)+"}"
-
     data_enc, iv = encryption.symmetrical_encrypt(data.encode(), client_shared_key)
-
     message = "{'type': 'DH-HANDSHAKE-1', 'sender-username': '"+str(CLIENT_USERNAME)+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+"}"
 
     send_message(message.encode(), client_addr)
+
+def receive_dh_handshake(message_data, addr):
+    message_data, data = extract_dh_data(message_data)
+
+    global b
+    gbmodp, b = dh_exchange.receive_dh_parameters(data['g'], data['p'])
+    calculate_dh_derived_key_receiver(data['gamodp'], data['p'], message_data['sender-username'])
+
+    data = "{'receiver-username': '"+message_data['sender-username']+"', 'gbmodp': "+str(gbmodp)+"}"
+    data_enc, iv = encryption.symmetrical_encrypt(data.encode(), clients_shared_keys[message_data['sender-username']])
+    message = "{'type': 'DH-HANDSHAKE-2', 'sender-username': '"+str(CLIENT_USERNAME)+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+"}"
+    send_message(message.encode(), addr)
+
+def extract_dh_data(message_data):
+    client_shared_key = clients_shared_keys[message_data['sender-username']]
+    data_dec = encryption.symmetrical_decrypt(message_data['data'], client_shared_key, message_data['iv'])
+    data = ast.literal_eval(data_dec.decode())
+
+    if str(data['receiver-username']) != CLIENT_USERNAME:
+        sys.exit("Error: Messaging")
+    return message_data, data
 
 def calculate_dh_derived_key_receiver(gamodp, p, username):
     global b
     derived_key = pow(gamodp, b, p)
     derived_key = hashlib.sha256(str(derived_key).encode())
     clients_dh_keys[username] = derived_key
-    #print(str(derived_key.digest()))
-    #print(encryption.symmetrical_encrypt("hello".encode(), derived_key.digest()))
 
 def calculate_dh_derived_key_sender(gbmodp, p, username):
     global a
     derived_key = pow(gbmodp, a, p)
     derived_key = hashlib.sha256(str(derived_key).encode())
     clients_dh_keys[username] = derived_key
-
-    #print(sys.getsizeof(derived_key.to_bytes(32, 'big')))
-    #print(hashlib.sha256(str(derived_key).encode()).hexdigest())
 
 # Print the list of logged in clients received from the server
 def update_clients(data):
@@ -228,45 +242,32 @@ def menu():
             help()
 
 # Process all incoming UDP messages
-def processor():
+def receiver():
     while True:
         #try:
         message, addr = client.recvfrom(4096)
         message_data = ast.literal_eval(message.decode())
 
         if message_data['type'] == 'LOGIN':
-            finish_login(message_data, addr)
+            try:
+                finish_login(message_data, addr)
+            except:
+                sys.exit("Error: Login failed.")
 
         # If type of message received is LIST
         elif message_data['type'] == 'LIST':
-            update_clients(ast.literal_eval(encryption.symmetrical_decrypt(message_data['data'], shared_key, message_data['iv']).decode()))
+            try:
+                data = ast.literal_eval(encryption.symmetrical_decrypt(message_data['data'], shared_key, message_data['iv']).decode())
+                update_clients(data)
+            except:
+                pass
 
         #If type of message received is MESSAGE
         elif message_data['type'] == 'DH-HANDSHAKE-1':
-            client_shared_key = clients_shared_keys[message_data['sender-username']]
-            data_dec = encryption.symmetrical_decrypt(message_data['data'], client_shared_key, message_data['iv'])
-            data = ast.literal_eval(data_dec.decode())
-
-            if str(data['receiver-username']) != CLIENT_USERNAME:
-                sys.exit("Error: Messaging")
-
-            global b
-            gbmodp, b = dh_exchange.receive_dh_parameters(data['g'], data['p'])
-            calculate_dh_derived_key_receiver(data['gamodp'], data['p'], message_data['sender-username'])
-
-            data = "{'receiver-username': '"+message_data['sender-username']+"', 'gbmodp': "+str(gbmodp)+"}"
-            data_enc, iv = encryption.symmetrical_encrypt(data.encode(), client_shared_key)
-            message = "{'type': 'DH-HANDSHAKE-2', 'sender-username': '"+str(CLIENT_USERNAME)+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+"}"
-            send_message(message.encode(), addr)
-
+            receive_dh_handshake(message_data, addr)
 
         elif message_data['type'] == 'DH-HANDSHAKE-2':
-            client_shared_key = clients_shared_keys[message_data['sender-username']]
-            data_dec = encryption.symmetrical_decrypt(message_data['data'], client_shared_key, message_data['iv'])
-            data = ast.literal_eval(data_dec.decode())
-
-            if str(data['receiver-username']) != CLIENT_USERNAME:
-                sys.exit("Error: Messaging")
+            _, data = extract_dh_data(message_data)
             global p
             calculate_dh_derived_key_sender(data['gbmodp'], p, message_data['sender-username'])
         
@@ -306,11 +307,9 @@ def processor():
         #except:
         #    print("Error: Error reading incoming message.")
 
-#processor()
-
-# Running menu and processor as different threads
+# Running menu and receiver as different threads
 t1 = threading.Thread(target=menu)
-t2 = threading.Thread(target=processor)
+t2 = threading.Thread(target=receiver)
 t1.daemon = True
 t1.start()
 t2.start()
