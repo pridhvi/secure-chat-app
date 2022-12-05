@@ -1,5 +1,6 @@
 import os
 
+# Class for all the logged in clients that the server stores
 class LoggedInClient:
 
     def __init__(self, username, server_shared_key, addr, N2):
