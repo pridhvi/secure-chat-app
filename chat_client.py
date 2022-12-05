@@ -15,11 +15,10 @@ import ast
 import dh_exchange
 import time
 import getpass
+import atexit
 
 # Argument parser
 parser = argparse.ArgumentParser()
-#parser.add_argument('-u',type=str, required=True)
-#parser.add_argument('-p',type=str, required=True)
 parser.add_argument('-sip',type=str, required=True)
 parser.add_argument('-sp',type=int, required=True)
 args = parser.parse_args()
@@ -306,6 +305,11 @@ def receiver():
             break
         #except:
         #    print("Error: Error reading incoming message.")
+
+def exit_handler():
+    logout()
+
+atexit.register(exit_handler)
 
 # Running menu and receiver as different threads
 t1 = threading.Thread(target=menu)
