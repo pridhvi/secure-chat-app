@@ -6,7 +6,7 @@ import random
 import sys
 import hashlib
 import os
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import serialization, hashes, hmac
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import base64
@@ -98,13 +98,20 @@ def send_message_to_client(username, text):
                 time.sleep(6)
     
     data = "{'receiver-username': '"+username+"', 'text': '"+text+"'}"
+    # Encrypting the text symmetrically using the DH derived key
     data_enc, iv = encryption.symmetrical_encrypt(data.encode(), clients_dh_keys[username].digest())
-    message = "{'type': 'MESSAGE', 'sender-username': '"+CLIENT_USERNAME+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+"}"
+    # Calculcate the HMAC
+    h = hmac.HMAC(clients_dh_keys[username].digest(), hashes.SHA256())
+    h.update(data_enc)
+    signature = h.finalize()
+
+    message = "{'type': 'MESSAGE', 'sender-username': '"+CLIENT_USERNAME+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+", 'signature': "+str(signature)+"}"
 
     send_message(message.encode(), clients_addr[username])
 
 
 def initiate_dh_handshake(username):
+    print("Generating keys for first communication...")
     global a, p
     gamodp, g, p, a = dh_exchange.send_dh_parameters()
     client_shared_key = clients_shared_keys[username]
@@ -143,8 +150,12 @@ def update_clients(data):
 
 def print_clients():
     global clients_addr
+    if len(clients_addr) == 1:
+        print("No other logged in users.")
+        return
     for username, addr in clients_addr.items():
-        print(username + " --> " + str(addr))
+        if not username == CLIENT_USERNAME:
+            print(username + " --> " + str(addr))
 
 # Print received message with the username of the sender
 # Add functionality: Can search the clients list for the username using addr
@@ -160,8 +171,7 @@ def get_client_addr(username):
 def finish_login(message_data, addr):
     global shared_key, N2
     message_data_dec = ast.literal_eval(encryption.symmetrical_decrypt(message_data['data'], shared_key, message_data['iv']).decode())
-    if str(message_data_dec['N1']) == N1:
-        # save client list
+    if str(message_data_dec['username']) == CLIENT_USERNAME and str(message_data_dec['N1']) == N1:
         N2 = message_data_dec['N2']
     else:
         sys.exit("Error: Server Authentication failed!")
@@ -171,10 +181,11 @@ def logout():
     N3 = os.urandom(10)
     data = "{'username': '"+CLIENT_USERNAME+"', 'N2': "+str(N2)+", 'N3': "+str(N3)+"}"
     message = "{'type': 'LOGOUT', 'data': "+str(rsa_encrypt(data.encode()))+"}"
-    #data = "{'N2': "+str(N2)+", 'N3': "+str(N3)+"}"
-    #data_enc, iv = encryption.symmetrical_encrypt(data.encode(), shared_key)
-    #message = "{'type': 'LOGOUT', 'username': '"+CLIENT_USERNAME+"', 'data': "+str(data_enc)+", 'iv': "+str(iv)+"}"
     send_message(message.encode(), SERVER_ADDR)
+
+def remove_data():
+    global N2, N3, a, b, p, clients_shared_keys, clients_addr, clients_dh_keys
+    del N2, N3, a, b, p, clients_shared_keys, clients_addr, clients_dh_keys
 
 # Print help command output
 def help():
@@ -203,7 +214,10 @@ def menu():
         elif command[0] == "send":
             # Second string(command[1]) is the username
             # Passing rest of the strings in the list as the message
+            #try:
             send_message_to_client(command[1], ' '.join(command[2:]))
+            #except:
+            #    print("Error: Failed to send message.")
         elif command[0] == "logout":
             logout()
 
@@ -258,6 +272,12 @@ def processor():
         
         elif message_data['type'] == 'MESSAGE':
             client_dh_key = clients_dh_keys[message_data['sender-username']]
+
+            # Verify HMAC
+            h = hmac.HMAC(client_dh_key.digest(), hashes.SHA256())
+            h.update(message_data['data'])
+            h.verify(message_data['signature'])
+
             data_dec = encryption.symmetrical_decrypt(message_data['data'], client_dh_key.digest(), message_data['iv'])
             data = ast.literal_eval(data_dec.decode())
 
@@ -275,6 +295,8 @@ def processor():
 
             global N3
             if str(data['N3']) == str(N3):
+                remove_data()
+                print("Logged out successfully!")
                 sys.exit()
 
         # Print error message and stop the program
