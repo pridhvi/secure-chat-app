@@ -5,7 +5,7 @@ import socket
 
 # Generates values for the DH exchange initiator
 def send_dh_parameters():
-    parameters = dh.generate_parameters(generator=2, key_size=512)
+    parameters = dh.generate_parameters(generator=2, key_size=2048)
     private_key = parameters.generate_private_key()
     a = private_key.private_numbers().x
     g = parameters.parameter_numbers().g
@@ -16,7 +16,7 @@ def send_dh_parameters():
 
 # Generates values for the DH exchange receiver
 def receive_dh_parameters(g, p):
-    parameters = dh.generate_parameters(generator=2, key_size=512)
+    parameters = dh.generate_parameters(generator=2, key_size=2048)
     private_key = parameters.generate_private_key()
     b = private_key.private_numbers().x
 

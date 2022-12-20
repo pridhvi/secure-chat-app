@@ -1,0 +1,10 @@
+#FROM python:3.9
+FROM python:3.10-slim-bullseye
+
+ADD chat_server.py encryption.py loggedin_client.py server_priv.key server_pub.pem ./
+
+EXPOSE 3000
+
+RUN pip install cryptography
+
+CMD python3 ./chat_server.py

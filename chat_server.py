@@ -1,4 +1,4 @@
-import socket, argparse, sys, hashlib, base64, ast, encryption, os, loggedin_client
+import socket, sys, hashlib, base64, ast, encryption, os, loggedin_client
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -10,21 +10,20 @@ clients_creds = {"pridhvi": {"salt": "7vq&9rVn9mZu", "hash": "375a3da193bcecc10d
 logged_in_clients = []
 
 # Argument parser
-parser = argparse.ArgumentParser()
-parser.add_argument('-sp',type=int, required=True)
-args = parser.parse_args()
+#parser = argparse.ArgumentParser()
+#parser.add_argument('-sp',type=int)
+#args = parser.parse_args()
 
 # Constants
-SERVER_PORT = args.sp
-#SERVER_IP = socket.gethostbyname(socket.gethostname())
-SERVER_IP = "127.0.0.1"
+SERVER_PORT = 3000
+SERVER_IP = socket.gethostbyname(socket.gethostname())
 SERVER_ADDR = (SERVER_IP, SERVER_PORT)
 
 # Create server socket
 try:
     server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     server.bind(SERVER_ADDR)
-    print("Application starting at " + str(SERVER_IP) + ":" + str(SERVER_PORT) + " ...")
+    print("Application started at " + str(SERVER_IP) + ":" + str(SERVER_PORT) + " ...")
 except:
     sys.exit("Error: Unable to open UDP socket at port " + str(SERVER_PORT))
 

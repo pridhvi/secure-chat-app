@@ -1,0 +1,12 @@
+#FROM python:3.9
+FROM python:3.10-slim-bullseye
+
+ADD chat_client.py dh_exchange.py encryption.py loggedin_client.py server_pub.pem ./
+
+EXPOSE 4000
+
+RUN pip install cryptography
+
+ENV serverip localhost
+
+CMD python3 ./chat_client.py -sip ${serverip}

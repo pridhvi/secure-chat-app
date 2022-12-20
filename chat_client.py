@@ -6,18 +6,18 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 # Argument parser
 parser = argparse.ArgumentParser()
 parser.add_argument('-sip',type=str, required=True)
-parser.add_argument('-sp',type=int, required=True)
+#parser.add_argument('-sp',type=int, required=True)
 args = parser.parse_args()
 
 # Constants
 # Choose a random port between 8000-9000 for the client socket
-CLIENT_PORT = random.randint(8000, 9000)
-#CLIENT_IP = socket.gethostbyname(socket.gethostname())
-CLIENT_IP = "127.0.0.1"
+#CLIENT_PORT = random.randint(8000, 9000)
+CLIENT_PORT = 4000
+CLIENT_IP = socket.gethostbyname(socket.gethostname())
 CLIENT_USERNAME = input("Username: ")
 CLIENT_PASSWORD = getpass.getpass("Password: ")
 CLIENT_ADDR = (CLIENT_IP, CLIENT_PORT)
-SERVER_ADDR = (args.sip, args.sp)
+SERVER_ADDR = (args.sip, 3000)
 N2 = ""
 N3 = ""
 a = 0
@@ -107,7 +107,7 @@ def send_message_to_client(username, text):
 
 # Start the DH exchange
 def initiate_dh_handshake(username):
-    print("Generating keys for first communication with " + username)
+    #print("Generating keys for first communication with " + username)
     global a, p
     gamodp, g, p, a = dh_exchange.send_dh_parameters()
     # Shared key between the clients received from the server
@@ -202,6 +202,7 @@ def finish_login(message_data, addr):
     # Check if N1 is same to authenticate the server
     if str(message_data_dec['username']) == CLIENT_USERNAME and str(message_data_dec['N1']) == N1:
         N2 = message_data_dec['N2']
+        help()
     else:
         sys.exit("Error: Server Authentication failed!")
 
