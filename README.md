@@ -1,19 +1,32 @@
 # udp-chat-python
 A console based chat application implemented with self-designed protocols.
 
-## SERVER
+## Run the python files
+### SERVER
 
-Command
+`python3 chat_server.py`
 
-`python3 chat_server.py -sp <port>`
+### CLIENT
 
-## CLIENT
+`python3 chat_client.py -sip <server-ip>`
 
-Command
+## Run as Docker Containers
+### SERVER
 
-`python3 chat_client.py -sip <server-ip> -sp <server-port>`
+`docker run --rm -d pridhvi/chat-server`
 
-## Information
+### CLIENT
+`docker run -it --rm -e serverip=<server-ip> pridhvi/chat-client`
+
+## Build Docker Images
+### SERVER
+
+`docker build --no-cache -t pridhvi/chat-server -f Dockerfile_Server .`
+
+### CLIENT
+`docker build --no-cache -t pridhvi/chat-client -f Dockerfile_Client .`
+
+## Additional Information
 
 Server keys (RSA) are included as the files server_priv.key and server_pub.key. Clients and server use these keys to communicate confidentially. Please generate new RSA key pair for your usage.
 
@@ -33,5 +46,3 @@ Username: virat
 Password: %Ja5cji4s!fQ
 
 Type "help" to get a list of commands
-
-The client will start running at a random port between 8000 and 9000.
