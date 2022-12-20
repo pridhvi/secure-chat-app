@@ -1,5 +1,5 @@
-# udp-chat-python
-A console based chat application implemented with self-designed protocols.
+# Secure Chat Application
+A console based chat application implemented with self-designed authentication protocols entirely functioning using UDP.
 
 ## Run the python files
 ### SERVER
