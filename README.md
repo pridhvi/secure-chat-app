@@ -13,7 +13,7 @@ A console based chat application implemented with self-designed authentication p
 ## Run as Docker Containers
 ### SERVER
 
-`docker run --rm -d pridhvi/chat-server`
+`docker run --name chat-server --rm -d pridhvi/chat-server`
 
 ### CLIENT
 `docker run -it --rm -e serverip=<server-ip> pridhvi/chat-client`
