@@ -30,6 +30,8 @@ A console based chat application implemented with self-designed authentication p
 
 Server keys (RSA) are included as the files server_priv.key and server_pub.key. Clients and server use these keys to communicate confidentially. Please generate new RSA key pair for your usage.
 
+Please refer to [Protocols.pdf](Protocols.pdf) for information about the protocols being used.
+
 There are three clients in the server. Only those three clients can login (There is no registration function). The credentials for those clients are as follows:
 
 ### Client 1
@@ -44,5 +46,3 @@ Password: #0v2^WZuT&33
 Username: virat
 
 Password: %Ja5cji4s!fQ
-
-Type "help" to get a list of commands
