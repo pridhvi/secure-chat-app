@@ -11,8 +11,8 @@ args = parser.parse_args()
 
 # Constants
 # Choose a random port between 8000-9000 for the client socket
-#CLIENT_PORT = random.randint(8000, 9000)
-CLIENT_PORT = 4000
+CLIENT_PORT = random.randint(8000, 9000)
+#CLIENT_PORT = 4000
 CLIENT_IP = socket.gethostbyname(socket.gethostname())
 CLIENT_USERNAME = input("Username: ")
 CLIENT_PASSWORD = getpass.getpass("Password: ")
